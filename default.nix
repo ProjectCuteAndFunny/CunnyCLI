@@ -11,13 +11,8 @@ buildDotnetModule rec {
   version = "1";
   src = ./.;
   nugetDeps = ./deps.nix;
-  buildInputs = [
-    dotnet-runtime_6
-  ];
-  nativeBuildInputs = [
-    dotnet-sdk_6
-    pkg-config
-  ];
+s  dotnet-sdk = dotnet-sdk_6;
+  dotnet-runtime = dotnet-runtime_6;
   meta = with lib; {
     homepage = "https://github.com/ProjectCuteAndFunny/CunnyCLI";
     description = "A tool that uses the CunnyAPI to download images";
