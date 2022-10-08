@@ -11,7 +11,7 @@ buildDotnetModule rec {
   version = "1";
   src = ./.;
   nugetDeps = ./deps.nix;
-s  dotnet-sdk = dotnet-sdk_6;
+  dotnet-sdk = dotnet-sdk_6;
   dotnet-runtime = dotnet-runtime_6;
   meta = with lib; {
     homepage = "https://github.com/ProjectCuteAndFunny/CunnyCLI";
