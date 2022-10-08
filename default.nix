@@ -19,7 +19,7 @@ buildDotnetModule rec {
     pkg-config
   ];
   meta = with lib; {
-    homepage = "";
+    homepage = "https://github.com/ProjectCuteAndFunny/CunnyCLI";
     description = "A tool that uses the CunnyAPI to download images";
     license = licenses.mit;
     platforms = [ "x86_64-linux" ];
