@@ -1,22 +1,29 @@
 using System.Text.Json.Serialization;
 
-namespace GermanBread.cunnycli;
+namespace GermanBread.CunnyCLI;
 
-public sealed class CunnyJSONElement {
+public sealed class CunnyJsonElement {
     [JsonPropertyName("tags")]
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; }
+
     [JsonPropertyName("owner_name")]
-    public string OwnerName { get; set; } = "";
+    public string OwnerName { get; set; }
+
     [JsonPropertyName("image_url")]
-    public string ImageURL { get; set; } = "";
+    public string ImageUrl { get; set; }
+
     [JsonPropertyName("post_url")]
-    public string PostURL { get; set; } = "";
+    public string PostUrl { get; set; }
+
     [JsonPropertyName("hash")]
-    public string Hash { get; set; } = "";
+    public string Hash { get; set; }
+
     [JsonPropertyName("height")]
-    public int Height { get; set; } = 0;
+    public int Height { get; set; }
+
     [JsonPropertyName("width")]
-    public int Width { get; set; } = 0;
+    public int Width { get; set; }
+
     [JsonPropertyName("id")]
-    public int ID { get; set; } = 0;
+    public int Id { get; set; }
 }
