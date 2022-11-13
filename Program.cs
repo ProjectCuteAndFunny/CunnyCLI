@@ -1,6 +1,6 @@
-﻿using System.Net;
+﻿using System.CommandLine;
 using System.Text.Json;
-using System.CommandLine;
+using System.Net;
 
 namespace GermanBread.cunnycli;
 
@@ -13,7 +13,7 @@ public static class Program {
             IsRequired = true
         };
         booru.AddValidator((val) => {
-            if (!"safebooru|gelbooru|danbooru|lolibooru|yandere|konachan".Contains(val.GetValueOrDefault<string?>())) {
+            if (!"safebooru|gelbooru|danbooru|lolibooru|yandere|konachan".Contains(val.GetValueOrDefault<string>()!)) {
                 Console.Error.WriteLine("Invalid booru.");
                 Environment.Exit(2);
             }
@@ -29,6 +29,11 @@ public static class Program {
             description: "Amount of images"
         );
         amount.SetDefaultValue(1);
+        var threads = new Option<int>(
+            name: "--threads",
+            description: "Maximum amount of download threads"
+        );
+        threads.SetDefaultValue(5);
         var showTags = new Option<bool>(
             name: "--show-tags",
             description: "Show tags in results"
@@ -78,6 +83,7 @@ public static class Program {
             skip,
             booru,
             amount,
+            threads,
             cunnyAPIUrl,
             downloadPath
         };
@@ -102,13 +108,13 @@ public static class Program {
             downloadCommand
         };
 
-        downloadCommand.SetHandler(async (string booru, string tags, string downloadPath, string? cunnyapiUrl, int amount, int skip) => {
+        downloadCommand.SetHandler(async (string booru, string tags, string downloadPath, string? cunnyapiUrl, int amount, int skip, int maxThreads) => {
             var results = await CunnyAPIClient.Get(cunnyapiUrl ?? Globals.DefaultCunnyAPIURL, booru, tags, amount, skip);
 
             foreach (var item in results) {
                 var _dirPath = Path.Combine(downloadPath, tags, new Uri(item.ImageURL).Host);
                 var _filePath = Path.Combine(_dirPath, $"{item.Hash}-{item.Width}x{item.Height}{Path.GetExtension(item.ImageURL)}");
-                var _filePathPart = Path.Combine(_dirPath, $"{item.Hash}-{item.Width}x{item.Height}{Path.GetExtension(item.ImageURL)}");
+                var _filePathPart = $"{_filePath}.part";
 
                 if (File.Exists(_filePath)) {
                     Console.Error.WriteLine($"Skipping, because it is already downloaded: {_filePath}");
@@ -118,14 +124,27 @@ public static class Program {
                 Directory.CreateDirectory(_dirPath);
                 Console.Error.WriteLine($"Saving to: {_filePath}");
 
-                using var _dlstrm = await Globals.HttpClient.GetStreamAsync(item.ImageURL);
-                using var _wstrm = File.Open(_filePathPart, FileMode.Create);
+                while (downloadThreads.Count > maxThreads) {}
 
-                _dlstrm.CopyTo(_wstrm);
+                var _task = Task.Run(async () => {
+                    using var _dlstrm = await Globals.HttpClient.GetStreamAsync(item.ImageURL);
+                    using var _wstrm = File.Open(_filePathPart, FileMode.Create);
 
-                File.Move(_filePathPart, _filePath);
+                    _dlstrm.CopyTo(_wstrm);
+
+                    File.Move(_filePathPart, _filePath);
+                    Console.Error.WriteLine($"Saved {_filePath}");
+                });
+                downloadThreads.Add(_task);
+                _ = Task.Run(() => {
+                    while (!_task.IsCompleted) {}
+
+                    lock (downloadThreadsLock) {
+                        downloadThreads.Remove(_task);
+                    }
+                });
             }
-        }, booru, tags, downloadPath, cunnyAPIUrl, amount, skip);
+        }, booru, tags, downloadPath, cunnyAPIUrl, amount, skip, threads);
 
         searchCommand.SetHandler(async (string booru, string tags, string? cunnyapiUrl, int amount, int skip, bool showTags, bool outputJson) => {
             var results = await CunnyAPIClient.Get(cunnyapiUrl ?? Globals.DefaultCunnyAPIURL, booru, tags, amount, skip);
@@ -146,4 +165,7 @@ public static class Program {
 
         return await rootCommand.InvokeAsync(Args);
     }
+
+    private static object downloadThreadsLock = new();
+    private static readonly List<Task> downloadThreads = new();
 }
