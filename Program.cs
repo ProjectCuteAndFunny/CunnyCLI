@@ -108,8 +108,12 @@ public static class Program {
             downloadCommand
         };
 
+        var progress = 0;
+
         downloadCommand.SetHandler(async (string booru, string tags, string downloadPath, string? cunnyapiUrl, int amount, int skip, int maxThreads) => {
             var results = await CunnyAPIClient.Get(cunnyapiUrl ?? Globals.DefaultCunnyAPIURL, booru, tags, amount, skip);
+
+            Globals.Logs.CollectionChanged += (_, e) => Console.Write($"\u001b[s\u001b[22;37m[\u001b[34m{downloadThreads.Count}\u001b[37m/\u001b[32m{progress}\u001b[37m/\u001b[0m{amount}\u001b[37m]\u001b[0m {Globals.Logs[^1]}\u001b[0J\u001b[u");
 
             foreach (var item in results) {
                 var _dirPath = Path.Combine(downloadPath, tags, new Uri(item.ImageURL).Host);
@@ -117,12 +121,16 @@ public static class Program {
                 var _filePathPart = $"{_filePath}.part";
 
                 if (File.Exists(_filePath)) {
-                    Console.Error.WriteLine($"Skipping, because it is already downloaded: {_filePath}");
+                    lock (logsLock) {
+                        Globals.Logs.Add($"Skipping, because it is already downloaded: {Path.GetFileName(_filePath)}");
+                    }
                     continue;
                 }
 
                 Directory.CreateDirectory(_dirPath);
-                Console.Error.WriteLine($"Saving to: {_filePath}");
+                lock (logsLock) {
+                    Globals.Logs.Add($"Saving to: {Path.GetFileName(_filePath)}");
+                }
 
                 while (downloadThreads.Count > maxThreads) {}
 
@@ -133,8 +141,12 @@ public static class Program {
                     _dlstrm.CopyTo(_wstrm);
 
                     File.Move(_filePathPart, _filePath);
-                    Console.Error.WriteLine($"Saved {_filePath}");
+                    lock (logsLock) {
+                        Globals.Logs.Add($"Saved {Path.GetFileName(_filePath)}");
+                        progress++;
+                    }
                 });
+
                 downloadThreads.Add(_task);
                 _ = Task.Run(() => {
                     while (!_task.IsCompleted) {}
@@ -165,7 +177,7 @@ public static class Program {
 
         return await rootCommand.InvokeAsync(Args);
     }
-
-    private static object downloadThreadsLock = new();
+    private readonly static object logsLock = new();
+    private readonly static object downloadThreadsLock = new();
     private static readonly List<Task> downloadThreads = new();
 }
