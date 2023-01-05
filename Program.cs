@@ -121,13 +121,15 @@ public static class Program {
                 var _filePathPart = $"{_filePath}.part";
 
                 if (File.Exists(_filePath)) {
-                    Globals.Logs.Add($"Skipping, because it is already downloaded: {Path.GetFileName(_filePath)}");
+                    Globals.Logs.Add($"Skipping \u001b[22;37m{Path.GetFileName(_filePath)}\u001b[0m");
                     continue;
                 }
 
                 Directory.CreateDirectory(_dirPath);
 
-                while (downloadThreads.Count >= maxThreads) {}
+                while (downloadThreads.Count >= maxThreads) { }
+
+                Globals.Logs.Add($"Downloading \u001b[22;37m{Path.GetFileName(_filePath)}\u001b[0m");
 
                 var _task = Task.Run(async () => {
                     using var _dlstrm = await Globals.HttpClient.GetStreamAsync(item.ImageURL);
