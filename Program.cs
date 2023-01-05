@@ -33,7 +33,7 @@ public static class Program {
             name: "--threads",
             description: "Maximum amount of download threads"
         );
-        threads.SetDefaultValue(5);
+        threads.SetDefaultValue(Environment.ProcessorCount);
         var showTags = new Option<bool>(
             name: "--show-tags",
             description: "Show tags in results"
@@ -121,18 +121,13 @@ public static class Program {
                 var _filePathPart = $"{_filePath}.part";
 
                 if (File.Exists(_filePath)) {
-                    lock (logsLock) {
-                        Globals.Logs.Add($"Skipping, because it is already downloaded: {Path.GetFileName(_filePath)}");
-                    }
+                    Globals.Logs.Add($"Skipping, because it is already downloaded: {Path.GetFileName(_filePath)}");
                     continue;
                 }
 
                 Directory.CreateDirectory(_dirPath);
-                lock (logsLock) {
-                    Globals.Logs.Add($"Saving to: {Path.GetFileName(_filePath)}");
-                }
 
-                while (downloadThreads.Count > maxThreads) {}
+                while (downloadThreads.Count >= maxThreads) {}
 
                 var _task = Task.Run(async () => {
                     using var _dlstrm = await Globals.HttpClient.GetStreamAsync(item.ImageURL);
@@ -141,10 +136,8 @@ public static class Program {
                     _dlstrm.CopyTo(_wstrm);
 
                     File.Move(_filePathPart, _filePath);
-                    lock (logsLock) {
-                        Globals.Logs.Add($"Saved {Path.GetFileName(_filePath)}");
-                        progress++;
-                    }
+                    Globals.Logs.Add($"Saved \u001b[22;37m{Path.GetFileName(_filePath)}\u001b[0m");
+                    progress++;
                 });
 
                 downloadThreads.Add(_task);

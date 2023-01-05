@@ -29,6 +29,7 @@
           nuget-to-nix $tmp >deps.nix
           rm -r $tmp
           unset tmp
+          dotnet restore
         }
       '';
     };
