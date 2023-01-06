@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace GermanBread.cunnycli;
+namespace GermanBread.CunnyCLI;
 
-public sealed class CunnyJSONElement {
+public sealed class CunnyJsonElement {
     [JsonPropertyName("tags")]
     public List<string> Tags { get; set; } = new();
     [JsonPropertyName("owner_name")]

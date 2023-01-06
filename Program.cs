@@ -1,178 +1,191 @@
 ﻿using System.CommandLine;
-using System.Text.Json;
 using System.Net;
+using System.Text.Json;
+using GermanBread.CunnyCLI;
 
-namespace GermanBread.cunnycli;
+Option<string> booru = new(new []{"--booru", "-b"},
+    "One of <safebooru|gelbooru|danbooru|lolibooru|yandere|konachan>") {
+     IsRequired = true
+ };
+booru.AddValidator(val =>
+{
+    if ("safebooru|gelbooru|danbooru|lolibooru|yandere|konachan"
+        .Contains(val.GetValueOrDefault<string>() ?? string.Empty))
+        return;
+    Console.Error.WriteLine("Invalid booru.");
+    Environment.Exit(2);
+});
 
-public static class Program {
-    public static async Task<int> Main(string[] Args) {
-        var booru = new Option<string>(
-            name: "--booru",
-            description: "One of <safebooru|gelbooru|danbooru|lolibooru|yandere|konachan>"
-        ) {
-            IsRequired = true
-        };
-        booru.AddValidator((val) => {
-            if (!"safebooru|gelbooru|danbooru|lolibooru|yandere|konachan".Contains(val.GetValueOrDefault<string>()!)) {
-                Console.Error.WriteLine("Invalid booru.");
-                Environment.Exit(2);
-            }
-        });
-        var tags = new Option<string>(
-            name: "--tags",
-            description: "Tags to search for, separated by '+'"
-        ) {
-            IsRequired = true
-        };
-        var amount = new Option<int>(
-            name: "--count",
-            description: "Amount of images"
-        );
-        amount.SetDefaultValue(1);
-        var threads = new Option<int>(
-            name: "--threads",
-            description: "Maximum amount of download threads"
-        );
-        threads.SetDefaultValue(Environment.ProcessorCount);
-        var showTags = new Option<bool>(
-            name: "--show-tags",
-            description: "Show tags in results"
-        );
-        showTags.SetDefaultValue(false);
-        var outputJson = new Option<bool>(
-            name: "--json",
-            description: "Output JSON instead of pretty output"
-        );
-        outputJson.SetDefaultValue(false);
-        var skip = new Option<int>(
-            name: "--skip",
-            description: "How many images should be skipped before images are enumerated."
-        );
-        skip.SetDefaultValue(0);
-        var cunnyAPIUrl = new Option<string>(
-            name: "--cunnyapi-url",
-            description: "Full base URL to a CunnyAPI instance. See https://github.com/ProjectCuteAndFunny/CunnyApi for self-hosting instructions."
-        );
-        cunnyAPIUrl.AddValidator(async (val) => {
-            var url = val.GetValueOrDefault<string?>();
-            if (url is null) return;
+Option<string> tags = new(new []{"--tags", "-t"}, "Tags to search for, separated by '+'") {
+    IsRequired = true
+};
 
-            try {
-                _ = await Globals.HttpClient.GetAsync($"{url}/api/alive");
-            } catch (HttpRequestException ex) {
-                if (ex.StatusCode != HttpStatusCode.NotFound && ex.StatusCode != HttpStatusCode.InternalServerError) {
-                    Console.Error.WriteLine($"\"{url}\" is not a Cunny API instance");
-                    Environment.Exit(2);
-                } else {
-                    Console.Error.WriteLine("Warning: Unable to verify if the URL is a CunnyAPI instance");
-                }
-            }
-            val.ErrorMessage = "Invalid ";
-        });
-        var downloadPath = new Option<string>(
-            name: "--path",
-            description: "A valid path to a directory"
-        );
-        downloadPath.SetDefaultValue(Path.Combine(Environment.CurrentDirectory, "cunnycli-downloads"));
+Option<int> amount = new(new []{"--count", "-c"}, "Amount of images") {
+    IsRequired = true
+ };
+amount.SetDefaultValue(1);
 
-        var downloadCommand = new Command(
-            name: "download",
-            description: "Download images by tags from booru"
-        ) {
-            tags,
-            skip,
-            booru,
-            amount,
-            threads,
-            cunnyAPIUrl,
-            downloadPath
-        };
-        var searchCommand = new Command(
-            name: "search",
-            description: "Search for images based on tags in a booru"
-        ) {
-            tags,
-            skip,
-            booru,
-            amount,
-            showTags,
-            outputJson,
-            cunnyAPIUrl,
-            downloadPath
-        };
+Option<int> threads = new(new []{"--threads", "-th"}, "Maximum amount of download threads") {
+    IsRequired = true
+ };
+threads.AddValidator(val =>
+{
+    if (val.GetValueOrDefault<int>() <= 0)
+        val.Option.SetDefaultValue(1);
+});
+threads.SetDefaultValue(Environment.ProcessorCount);
 
-        var rootCommand = new RootCommand(
-            description: "Uooh CLI. Can query images and download images"
-        ) {
-            searchCommand,
-            downloadCommand
-        };
+Option<bool> showTags = new(new []{"--show-tags", "-st"}, "Show tags in results");
+showTags.SetDefaultValue(false);
 
-        var progress = 0;
+Option<bool> outputJson = new(new []{"--json", "-j"}, "Output JSON instead of pretty output");
+outputJson.SetDefaultValue(false);
 
-        downloadCommand.SetHandler(async (string booru, string tags, string downloadPath, string? cunnyapiUrl, int amount, int skip, int maxThreads) => {
-            var results = await CunnyAPIClient.Get(cunnyapiUrl ?? Globals.DefaultCunnyAPIURL, booru, tags, amount, skip);
+Option<int> skip = new(new []{"--skip", "-s"}, "How many images should be skipped before images are enumerated.") {
+    IsRequired = true
+};
+skip.SetDefaultValue(0);
 
-            Globals.Logs.CollectionChanged += (_, e) => Console.Write($"\u001b[s\u001b[22;37m[\u001b[34m{downloadThreads.Count}\u001b[37m/\u001b[32m{progress}\u001b[37m/\u001b[0m{amount}\u001b[37m]\u001b[0m {Globals.Logs[^1]}\u001b[0J\u001b[u");
+Option<string> cunnyApiUrl = new(new[] { "--cunnyapi-url", "-cau" },
+    "Full base URL to a CunnyAPI instance. See https://github.com/ProjectCuteAndFunny/CunnyApi for self-hosting instructions.")
+{
+    IsRequired = true
+};
+cunnyApiUrl.AddValidator(val => {
+    var url = val.GetValueOrDefault<string?>();
+    if (url is null)
+         return;
 
-            foreach (var item in results) {
-                var _dirPath = Path.Combine(downloadPath, tags, new Uri(item.ImageURL).Host);
-                var _filePath = Path.Combine(_dirPath, $"{item.Hash}-{item.Width}x{item.Height}{Path.GetExtension(item.ImageURL)}");
-                var _filePathPart = $"{_filePath}.part";
+    var response = Globals.Client.GetAsync($"{url}/api/v1/safebooru/1girl/1").Result;
+    if (response.StatusCode is not (HttpStatusCode.NotFound or HttpStatusCode.InternalServerError))
+        return;
 
-                if (File.Exists(_filePath)) {
-                    Globals.Logs.Add($"Skipping \u001b[22;37m{Path.GetFileName(_filePath)}\u001b[0m");
-                    continue;
-                }
+    Console.Error.WriteLineAsync($"\"{url}\" is not a Cunny API instance");
+    val.ErrorMessage = "Invalid";
+});
+cunnyApiUrl.SetDefaultValueFactory(Globals.DefaultCunnyApiurl.ToString);
 
-                Directory.CreateDirectory(_dirPath);
+Option<string> downloadPath = new(new []{"--path", "-p"}, "A valid path to a directory") {
+    IsRequired = true
+};
+downloadPath.SetDefaultValue(Path.Combine(Environment.CurrentDirectory, "cunnycli-downloads"));
 
-                while (downloadThreads.Count >= maxThreads) { }
+Option<string[]?> excludeTags = new(new[] { "--exclude-tags", "-et" }, "Tags to exclude, separated by space")
+{
+    AllowMultipleArgumentsPerToken = true,
+    IsRequired = false
+};
 
-                Globals.Logs.Add($"Downloading \u001b[22;37m{Path.GetFileName(_filePath)}\u001b[0m");
+Command downloadCommand = new("download", "Download images by tags from booru")
+{
+    tags,
+    skip,
+    booru,
+    amount,
+    threads,
+    cunnyApiUrl,
+    downloadPath
+};
 
-                var _task = Task.Run(async () => {
-                    using var _dlstrm = await Globals.HttpClient.GetStreamAsync(item.ImageURL);
-                    using var _wstrm = File.Open(_filePathPart, FileMode.Create);
+Command searchCommand = new("search", "Search for images based on tags in a booru")
+{
+    tags,
+    skip,
+    booru,
+    amount,
+    showTags,
+    outputJson,
+    cunnyApiUrl,
+    excludeTags,
+    downloadPath
+};
 
-                    _dlstrm.CopyTo(_wstrm);
+RootCommand rootCommand = new("Uooh CLI. Can query images and download images")
+{
+    searchCommand,
+    downloadCommand
+};
 
-                    File.Move(_filePathPart, _filePath);
-                    Globals.Logs.Add($"Saved \u001b[22;37m{Path.GetFileName(_filePath)}\u001b[0m");
-                    progress++;
-                });
+foreach (var option in new Option[]
+         {
+             booru,
+             tags,
+             amount,
+             threads,
+             showTags,
+             outputJson,
+             skip,
+             cunnyApiUrl,
+             downloadPath
+         })
+    rootCommand.AddOption(option);
 
-                downloadThreads.Add(_task);
-                _ = Task.Run(() => {
-                    while (!_task.IsCompleted) {}
+var progress = 0;
 
-                    lock (downloadThreadsLock) {
-                        downloadThreads.Remove(_task);
-                    }
-                });
-            }
-        }, booru, tags, downloadPath, cunnyAPIUrl, amount, skip, threads);
+downloadCommand.SetHandler(
+    async (booruValue, tagsValue, downloadPathValue, cunnyapiUrl, amountValue, skipValue, excludeTagsValue, maxThreads) =>
+    {
+        var results = await CunnyApiClient.Get(cunnyapiUrl, booruValue, tagsValue, amountValue, skipValue);
 
-        searchCommand.SetHandler(async (string booru, string tags, string? cunnyapiUrl, int amount, int skip, bool showTags, bool outputJson) => {
-            var results = await CunnyAPIClient.Get(cunnyapiUrl ?? Globals.DefaultCunnyAPIURL, booru, tags, amount, skip);
+        if (excludeTagsValue is not null)
+            foreach (var element in results.Where(element => element.Tags.Any(excludeTagsValue.Contains)).ToList())
+                results.Remove(element);
 
-            if (outputJson) {
-                Console.Write(JsonSerializer.Serialize(results));
+        Globals.Logs.CollectionChanged += (_, _) =>
+        Console.WriteLine(
+            $"\u001b[s\u001b[22;37m[\u001b[32m{progress}\u001b[37m/\u001b[0m{amountValue}\u001b[37m]\u001b[0m {Globals.Logs[^1]}\u001b[0J\u001b[u");
+
+        Parallel.ForEach(results.ToList(), new ParallelOptions { MaxDegreeOfParallelism = maxThreads }, itemValue =>
+        {
+            var dirPath = Path.Combine(downloadPathValue, tagsValue, new Uri(itemValue.ImageURL).Host);
+            var filePath = Path.Combine(dirPath, $"{itemValue.ID}-{itemValue.Hash}-{itemValue.Width}x{itemValue.Height}{Path.GetExtension(itemValue.ImageURL)}");
+            var filePathPart = $"{filePath}.part";
+
+            if (File.Exists(filePath))
+            {
+                Globals.Logs.Add($"Skipping \u001b[22;37m{Path.GetFileName(filePath)}\u001b[0m");
+                progress++;
                 return;
             }
 
-            for (int i = 0; i < results.Count; i++) {
-                var item = results[i];
+            if(!Directory.Exists(dirPath))
+                Directory.CreateDirectory(dirPath);
 
-                Console.ForegroundColor = i % 2 == 0 ? ConsoleColor.Cyan : ConsoleColor.Blue;
-                Console.WriteLine($"{i}: {(showTags ? $"[ {string.Join(' ', item.Tags)} ]" : "")}({item.Width}x{item.Height}) - {item.PostURL}");
-                Console.ResetColor();
-            }
-        }, booru, tags, cunnyAPIUrl, amount, skip, showTags, outputJson);
+            Globals.Logs.Add($"Downloading \u001b[22;37m{Path.GetFileName(filePath)}\u001b[0m");
+            using var downloadStream = Globals.Client.GetStreamAsync(itemValue.ImageURL).Result;
+            using var writeStream = File.Open(filePathPart, FileMode.Create);
+            downloadStream.CopyTo(writeStream);
+            File.Move(filePathPart, filePath);
+            Globals.Logs.Add($"Saved \u001b[22;37m{Path.GetFileName(filePath)}\u001b[0m");
 
-        return await rootCommand.InvokeAsync(Args);
+            progress++;
+        });
+
+}, booru, tags, downloadPath, cunnyApiUrl, amount, skip, excludeTags, threads);
+
+searchCommand.SetHandler(async (booruValue, tagsValue, cunnyapiUrl, amountValue, skipValue, showTagsValue,
+    excludeTagsValue, outputJsonValue) =>
+{
+    var results = await CunnyApiClient.Get(cunnyapiUrl, booruValue, tagsValue, amountValue, skipValue);
+
+    if (excludeTagsValue is not null)
+        foreach (var element in results.Where(element => element.Tags.Any(excludeTagsValue.Contains)).ToList())
+            results.Remove(element);
+
+    if (outputJsonValue)
+    {
+        Console.Write(JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
+        return;
     }
-    private readonly static object logsLock = new();
-    private readonly static object downloadThreadsLock = new();
-    private static readonly List<Task> downloadThreads = new();
-}
+
+    var i = 0;
+    foreach (var item in results.ToList())
+    {
+        Console.ForegroundColor = i % 2 == 0 ? ConsoleColor.Cyan : ConsoleColor.Blue;
+        Console.WriteLine($"{i}: {(showTagsValue ? $"[ {string.Join(' ', item.Tags)} ]" : "")}({item.Width}x{item.Height}) - {item.PostURL}");
+        Console.ResetColor();
+        i++;
+    }
+}, booru, tags, cunnyApiUrl, amount, skip, showTags, excludeTags, outputJson);
+
+await rootCommand.InvokeAsync(args);
