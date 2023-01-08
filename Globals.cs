@@ -4,7 +4,7 @@ namespace GermanBread.CunnyCLI;
 
 public static class Globals
 {
-    public static HttpClient Client = new();
-    public static readonly ObservableCollection<string> Logs = new();
-    public const string DefaultCunnyApiurl = "https://cunnyapi.breadwas.uber.space";
+    public static HttpClient Client { get; set; } = new();
+    public static ObservableCollection<string> Logs { get; } = new();
+    public static string DefaultCunnyApiUrl { get; } = "https://cunnyapi.breadwas.uber.space";
 }
