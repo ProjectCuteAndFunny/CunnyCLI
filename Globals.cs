@@ -1,9 +1,10 @@
 using System.Collections.ObjectModel;
 
-namespace GermanBread.cunnycli;
+namespace GermanBread.CunnyCLI;
 
-public static class Globals {
-    public static readonly HttpClient HttpClient = new();
+public static class Globals
+{
+    public static HttpClient Client = new();
     public static readonly ObservableCollection<string> Logs = new();
-    public static readonly string DefaultCunnyAPIURL = "https://cunnyapi.breadwas.uber.space";
+    public const string DefaultCunnyApiurl = "https://cunnyapi.breadwas.uber.space";
 }

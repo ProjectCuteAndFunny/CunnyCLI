@@ -1,11 +1,19 @@
 using System.Net;
-using System.Net.Http.Json;
+using System.Text.Json;
 
-namespace GermanBread.cunnycli;
+namespace GermanBread.CunnyCLI;
 
-public static class CunnyAPIClient {
-    public async static Task<List<CunnyJSONElement>> Get(string baseUrl, string booru, string tags, int amount, int skip) {
+public static class CunnyApiClient {
+    public static async Task<List<CunnyJsonElement>?> Get(string baseUrl, string booru, string tags, int amount,
+        int skip)
+    {
         var url = $"{baseUrl}/api/v1/{booru}/{tags}/{amount};{skip}";
-        return (await Globals.HttpClient.GetFromJsonAsync<List<CunnyJSONElement>>(url))!;
+        var response = await Globals.Client.GetAsync(url);
+
+        if (response.StatusCode is HttpStatusCode.OK)
+            return JsonSerializer.Deserialize<List<CunnyJsonElement>>(await response.Content.ReadAsStringAsync());
+
+        await Console.Error.WriteLineAsync($"Error: {response.StatusCode}");
+        return null;
     }
 }
