@@ -71,7 +71,7 @@ Option<string> downloadPath = new(new []{"--path", "-p"}, "A valid path to a dir
 };
 downloadPath.SetDefaultValue(Path.Combine(Environment.CurrentDirectory, "cunnycli-downloads"));
 
-Option<string?> excludeTags = new(new[] { "--exclude-tags", "-et" }, "Tags to exclude, separated by space")
+Option<string[]?> excludeTags = new(new[] { "--exclude-tags", "-et" }, "Tags to exclude, separated by space")
 {
     AllowMultipleArgumentsPerToken = true,
     IsRequired = false
