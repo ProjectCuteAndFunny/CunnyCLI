@@ -191,7 +191,6 @@ async Task DownloadHandler(InvocationContext invocationContext)
 
     Globals.Logs.CollectionChanged += (_, _) =>
         Console.Write($"\u001b[u\u001b[s\u001b[22;37m[\u001b[32m{progress}\u001b[37m/\u001b[0m{amountValue}\u001b[37m]\u001b[0m {Globals.Logs[^1]}\u001b[0J");
-            $"\u001b[s\u001b[22;37m[\u001b[32m{progress}\u001b[37m/\u001b[0m{amountValue}\u001b[37m]\u001b[0m {Globals.Logs[^1]}\u001b[0J\u001b[u");
 
     Parallel.ForEach(results, new ParallelOptions { MaxDegreeOfParallelism = threadsValue }, itemValue =>
     {
