@@ -217,6 +217,8 @@ async Task DownloadHandler(InvocationContext invocationContext)
         Globals.Logs.Add($"Saved \u001b[22;37m{Path.GetFileName(filePath)}\u001b[0m");
         progress++;
     });
+
+    Console.WriteLine($"\u001b[u\u001b[0JSaved to \u001b[22;37m{downloadPathValue}\u001b[0m");
 }
 
 async Task SearchHandler(InvocationContext invocationContext)
