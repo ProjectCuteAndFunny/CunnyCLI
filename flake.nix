@@ -18,7 +18,7 @@
 
     devShells.${system}.default = pkgs.mkShell {
       buildInputs = with pkgs; [
-        dotnet-sdk_6
+        dotnet-sdk_7
         nuget-to-nix
         mktemp
       ];

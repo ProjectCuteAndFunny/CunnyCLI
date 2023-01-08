@@ -1,16 +1,16 @@
-﻿using System.CommandLine;
-using System.CommandLine.Invocation;
-using System.Net;
+﻿using System.CommandLine.Invocation;
 using System.Net.NetworkInformation;
+using System.CommandLine;
 using System.Text.Json;
+using System.Net;
+
 using GermanBread.CunnyCLI;
 
-Option<string> booru = new(new []{"--booru", "-b"},
+Option<string> booru = new(new[] { "--booru", "-b" },
     "One of <safebooru|gelbooru|danbooru|lolibooru|yandere|konachan>") {
     IsRequired = true
 };
-booru.AddValidator(val =>
-{
+booru.AddValidator(val => {
     if ("safebooru|gelbooru|danbooru|lolibooru|yandere|konachan"
         .Contains(val.GetValueOrDefault<string>() ?? string.Empty)) {
         return;
@@ -19,16 +19,16 @@ booru.AddValidator(val =>
     Environment.Exit(2);
 });
 
-Option<string> tags = new(new []{"--tags", "-t"}, "Tags to search for, separated by '+'") {
+Option<string[]> tags = new(new[] { "--tags", "-t" }, "Tags to search for") {
     IsRequired = true
 };
 
-Option<int> amount = new(new []{"--count", "-c"}, "Amount of images") {
+Option<int> amount = new(new[] { "--count", "-c" }, "Amount of images") {
     IsRequired = true
 };
 amount.SetDefaultValue(1);
 
-Option<int> threads = new(new []{"--threads", "-th"}, "Maximum amount of download threads") {
+Option<int> threads = new(new[] { "--threads", "-th" }, "Maximum amount of download threads") {
     IsRequired = true
 };
 threads.AddValidator(val => {
@@ -37,20 +37,19 @@ threads.AddValidator(val => {
 });
 threads.SetDefaultValue(Environment.ProcessorCount);
 
-Option<bool> showTags = new(new []{"--show-tags", "-st"}, "Show tags in results");
+Option<bool> showTags = new(new[] { "--show-tags", "-st" }, "Show tags in results");
 showTags.SetDefaultValue(false);
 
-Option<bool> outputJson = new(new []{"--json", "-j"}, "Output JSON instead of pretty output");
+Option<bool> outputJson = new(new[] { "--json", "-j" }, "Output JSON instead of pretty output");
 outputJson.SetDefaultValue(false);
 
-Option<int> skip = new(new []{"--skip", "-s"}, "How many images should be skipped before images are enumerated.") {
+Option<int> skip = new(new[] { "--skip", "-s" }, "How many images should be skipped before images are enumerated.") {
     IsRequired = false
 };
 skip.SetDefaultValue(0);
 
 Option<string> cunnyApiUrl = new(new[] { "--cunnyapi-url", "-cau" },
-    "Full base URL to a CunnyAPI instance. See https://github.com/ProjectCuteAndFunny/CunnyApi for self-hosting instructions.")
-{
+    "Full base URL to a CunnyAPI instance. See https://github.com/ProjectCuteAndFunny/CunnyApi for self-hosting instructions.") {
     IsRequired = true
 };
 cunnyApiUrl.AddValidator(val => {
@@ -66,7 +65,7 @@ cunnyApiUrl.AddValidator(val => {
 });
 cunnyApiUrl.SetDefaultValueFactory(Globals.DefaultCunnyApiUrl.ToString);
 
-Option<string> downloadPath = new(new []{"--path", "-p"}, "A valid path to a directory") {
+Option<string> downloadPath = new(new[] { "--path", "-p" }, "A valid path to a directory") {
     IsRequired = true
 };
 downloadPath.SetDefaultValue(Path.Combine(Environment.CurrentDirectory, "cunnycli-downloads"));
@@ -168,7 +167,7 @@ async Task DownloadHandler(InvocationContext invocationContext) {
 
     if (proxyOptionValue is not null) {
         var proxy = new WebProxy(proxyOptionValue);
-        var handler = new HttpClientHandler {Proxy = proxy};
+        var handler = new HttpClientHandler { Proxy = proxy };
         var client = new HttpClient(handler);
         Globals.Client = client;
     }
@@ -184,7 +183,7 @@ async Task DownloadHandler(InvocationContext invocationContext) {
         Console.Write($"\u001b[u\u001b[s\u001b[22;37m[\u001b[32m{progress}\u001b[37m/\u001b[0m{amountValue}\u001b[37m]\u001b[0m {Globals.Logs[^1]}\u001b[0J");
 
     Parallel.ForEach(results, new ParallelOptions { MaxDegreeOfParallelism = threadsValue }, itemValue => {
-        var dirPath = Path.Combine(downloadPathValue, tagsValue, new Uri(itemValue.ImageURL).Host);
+        var dirPath = Path.Combine(downloadPathValue, string.Join(' ', tagsValue), new Uri(itemValue.ImageURL).Host);
         var filePath = Path.Combine(dirPath, $"{itemValue.ID}-{itemValue.Width}x{itemValue.Height}{Path.GetExtension(itemValue.ImageURL)}");
         var filePathPart = $"{filePath}.part";
 
@@ -194,7 +193,7 @@ async Task DownloadHandler(InvocationContext invocationContext) {
             return;
         }
 
-        if(!Directory.Exists(dirPath))
+        if (!Directory.Exists(dirPath))
             Directory.CreateDirectory(dirPath);
 
         Globals.Logs.Add($"Downloading \u001b[22;37m{Path.GetFileName(filePath)}\u001b[0m");
@@ -222,7 +221,7 @@ async Task SearchHandler(InvocationContext invocationContext) {
 
     if (proxyOptionValue is not null) {
         var proxy = new WebProxy(proxyOptionValue);
-        var handler = new HttpClientHandler {Proxy = proxy};
+        var handler = new HttpClientHandler { Proxy = proxy };
         var client = new HttpClient(handler);
         Globals.Client = client;
     }
