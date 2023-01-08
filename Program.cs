@@ -156,7 +156,7 @@ foreach (var option in new Option[]
          })
     rootCommand.AddOption(option);
 
-var progress = 0;
+var progress = 1;
 
 downloadCommand.SetHandler(DownloadHandler);
 
